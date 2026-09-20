@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: yt-platform-backend
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: yt-platform-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: "900000"
+      - key: JWT_REFRESH_EXPIRATION_MS
+        value: "604800000"
+      - key: STORAGE_TYPE
+        value: "cloudinary"
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+databases:
+  - name: yt-platform-db
+    databaseName: yt_platform
+    user: yt_admin
+    plan: free
+    region: oregon

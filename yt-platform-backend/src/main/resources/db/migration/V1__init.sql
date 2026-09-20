@@ -1,0 +1,42 @@
+-- YouTube Platform Initial Schema Migration (Flyway V1)
+
+CREATE TABLE IF NOT EXISTS user_accounts (
+    id BIGSERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255),
+    full_name VARCHAR(255) NOT NULL,
+    avatar_url VARCHAR(512),
+    role VARCHAR(50) NOT NULL DEFAULT 'ROLE_USER',
+    provider VARCHAR(50) NOT NULL DEFAULT 'LOCAL',
+    provider_id VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    token VARCHAR(512) NOT NULL UNIQUE,
+    user_id BIGINT NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+    expiry_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    revoked BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS channels (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL UNIQUE REFERENCES user_accounts(id) ON DELETE CASCADE,
+    handle VARCHAR(100) NOT NULL UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    description TEXT,
+    avatar_url VARCHAR(512),
+    banner_url VARCHAR(512),
+    subscriber_count BIGINT NOT NULL DEFAULT 0,
+    video_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON user_accounts(email);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_channels_handle ON channels(handle);
+CREATE INDEX IF NOT EXISTS idx_channels_user ON channels(user_id);

@@ -1,0 +1,6 @@
+{
+  "name": "YouTube Platform Backend",
+  "description": "Extracted Spring Boot backend codebase for YouTube Platform with Auth, Channels, Storage, and PostgreSQL.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

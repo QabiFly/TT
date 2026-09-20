@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: yt_platform_db
+    restart: always
+    environment:
+      POSTGRES_DB: yt_platform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: yt_platform_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/yt_platform
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgrespassword
+      JWT_SECRET: c2VjdXJlLXBsYXRmb3JtLWtleS0yNTYtYml0cy1sb25nLWZvci15dC1wbGF0Zm9ybQ==
+      STORAGE_TYPE: local
+      FRONTEND_URL: http://localhost:3000
+    volumes:
+      - app_uploads:/app/uploads
+
+volumes:
+  postgres_data:
+  app_uploads:
