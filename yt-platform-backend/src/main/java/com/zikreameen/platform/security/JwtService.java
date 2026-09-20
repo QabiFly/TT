@@ -9,80 +9,53 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
+import java.util.Optional;
+import java.util.UUID;
 
+/**
+ * Stateless JWT (HS256). Access token chhota hota hai (default 15 min) aur
+ * refresh token se naya milta hai — isliye server kabhi session memory nahi
+ * rakhna padta, matlab aage 1 server ho ya 100, code same rahega.
+ */
 @Service
 public class JwtService {
 
-    @Value("${app.jwt.secret}")
-    private String jwtSecret;
+    private final SecretKey key;
+    private final long accessMinutes;
 
-    @Value("${app.jwt.expiration-ms:900000}") // default 15 mins
-    private long jwtExpirationMs;
-
-    private SecretKey getSigningKey() {
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-        if (keyBytes.length < 32) {
-            // pad if short for HMAC-SHA256
-            byte[] padded = new byte[32];
-            System.arraycopy(keyBytes, 0, padded, 0, Math.min(keyBytes.length, 32));
-            return Keys.hmacShaKeyFor(padded);
-        }
-        return Keys.hmacShaKeyFor(keyBytes);
+    public JwtService(@Value("${app.jwt.secret}") String secret,
+                      @Value("${app.jwt.access-token-minutes:15}") long accessMinutes) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.accessMinutes = accessMinutes;
     }
 
-    public String generateToken(Long userId, String email, String role) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", userId);
-        claims.put("role", role);
-
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
-
+    public String generateAccessToken(UUID userId, String email) {
+        Instant now = Instant.now();
         return Jwts.builder()
-                .claims(claims)
-                .subject(email)
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(getSignKey())
+                .subject(userId.toString())
+                .claim("email", email)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(accessMinutes * 60)))
+                .signWith(key)
                 .compact();
     }
 
-    public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
-    }
-
-    public Long extractUserId(String token) {
-        Claims claims = extractAllClaims(token);
-        Object userIdObj = claims.get("userId");
-        if (userIdObj instanceof Number) {
-            return ((Number) userIdObj).longValue();
-        }
-        return null;
-    }
-
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
-    }
-
-    public Claims extractAllClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(getSigningKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-    }
-
-    public boolean isTokenValid(String token) {
+    public Optional<UUID> parseUserId(String token) {
         try {
-            Claims claims = extractAllClaims(token);
-            return !claims.getExpiration().before(new Date());
+            Claims claims = Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            return Optional.of(UUID.fromString(claims.getSubject()));
         } catch (JwtException | IllegalArgumentException e) {
-            return false;
+            return Optional.empty();
         }
+    }
+
+    public long getAccessMinutes() {
+        return accessMinutes;
     }
 }
